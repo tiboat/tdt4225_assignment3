@@ -1,10 +1,13 @@
 from DbConnector import DbConnector
 import os
 import pandas as pd
+from datetime import datetime
 
 # TODO:
 # Is amount of activities different than previous dataset?
-# Are date times, longitude, ... ok to insert as string?
+# Comment the drop collection code when submitting
+# Complete documentation
+# Write about part 1 in the report
 
 
 def read_labeled_users():
@@ -20,6 +23,16 @@ def read_labeled_users():
         lines = label_file.readlines()
         return [line.rstrip() for line in lines]
 
+def str_to_datetime(str):
+    """
+    Transforms a string of format %Y-%m-%d %H:%M:%S (e.g. 2022-02-23 18:51:49) to a datetime object
+
+    Args:
+        str: string to convert ot datetime object
+
+    Returns: datetime object representation of str
+    """
+    return datetime.strptime(str, "%Y-%m-%d %H:%M:%S")
 
 def get_start_and_end_time(trackpoints):
     """
@@ -30,11 +43,9 @@ def get_start_and_end_time(trackpoints):
         trackpoints: dataframe of trackpoints of an activity
 
     Returns: start and end date time
-
     """
-    start_time = trackpoints["date"].iloc[0] + " " + trackpoints["time"].iloc[0]
-    end_time = trackpoints["date"].iloc[-1] + " " + trackpoints["time"].iloc[-1]
-
+    start_time = trackpoints["date_time"].iloc[0]
+    end_time = trackpoints["date_time"].iloc[-1]
     return start_time, end_time
 
 
@@ -71,7 +82,13 @@ class Setup:
                 trackpoints_activity = pd.read_csv(os.path.join(activity_dir, activity),
                                                    names=["lat", "lon", "not_used", "altitude", "date_days", "date",
                                                           "time"],
-                                                   skiprows=6).drop(columns=["not_used"])
+                                                   skiprows=6)
+                # Combine date and time column into one datetime object
+                trackpoints_activity['date_time'] = trackpoints_activity["date"] + " " + trackpoints_activity["time"]
+                trackpoints_activity['date_time'] = trackpoints_activity['date_time'].apply(str_to_datetime)
+
+                # Drop unneeded columns
+                trackpoints_activity = trackpoints_activity.drop(columns=['not_used', 'date', 'time'])
                 # Only insert activity if it has <= 2500 trackpoints
                 nr_of_trackpoints = trackpoints_activity.shape[0]
                 if nr_of_trackpoints <= 2500:
@@ -91,7 +108,7 @@ class Setup:
                     start_date_time, end_date_time = get_start_and_end_time(trackpoints_activity)
                     transportation_mode = self.get_transportation_mode(start_date_time, end_date_time, user)
                     # Add activity to the list (with reference to user and trackpoint ids list)
-                    activities.append({"_id": activity_id, "user_id": user, "transportation_mode": transportation_mode,
+                    activities.append({"_id": activity_id, "user_id": int(user), "transportation_mode": transportation_mode,
                                        "start_date_time": start_date_time, "end_date_time": end_date_time,
                                        "trackpoints": trackpoint_activity_ids})
 
@@ -99,7 +116,7 @@ class Setup:
                     activity_id += 1
 
             # Add user with has_label and ids of its activities
-            users.append({"_id": user, "has_labels": self.has_label(user), "activities": activities_user})
+            users.append({"_id": int(user), "has_labels": self.has_label(user), "activities": activities_user})
 
         # Insert data in db
         self.bulk_insert_data("User", users)
@@ -147,7 +164,7 @@ class Setup:
             end_date_time: end date time of the activity
             user: user id of the concerning user
 
-        Returns: transportation mode ("NULL" if user has no transportation labels)
+        Returns: transportation mode (None if user has no transportation labels)
         """
         if self.has_label(user):
             # If the user did not get processed yet, the labels still need to be read
@@ -160,8 +177,8 @@ class Setup:
                 index = start_and_end_times.index((start_date_time, end_date_time))
                 return self.labels[user]["transportation_mode"].iloc[index]
 
-        # If user has no labels, return "NULL"
-        return "NULL"
+        # If user has no labels, return None
+        return None
 
     def add_labels_user(self, user):
         """
@@ -186,6 +203,11 @@ def main():
     try:
         # 1. Connect to MySQL server on virtual machine
         program = Setup()
+
+        # Drop previous collections
+        program.db.drop_collection("TrackPoint")
+        program.db.drop_collection("Activity")
+        program.db.drop_collection("User")
 
         # 2. Create and define the collections User, Activity and TrackPoint
         program.create_collections()
