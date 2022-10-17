@@ -49,7 +49,8 @@ class Queries:
         Find all types of transportation modes and count how many activities that are tagged with these transportation mode labels.
         Do not count the rows where the mode is null.
         """
-        pprint(list(activity.distinct('transportation_mode')))
+        # pprint(list(activity.distinct('transportation_mode')))
+        # print(list(activity.find({'user_id' : 10})))
         pprint(list(activity.aggregate([
             {"$match": {"transportation_mode": {"$ne": None, "$exists": "true"}}},
             {"$group": {"_id": "$transportation_mode", "Total activities": {"$count": {}}}}
@@ -59,7 +60,9 @@ class Queries:
         """
         Find the total distance (in km) walked in 2008, by user with id=112.
         """
-        pprint(list(user.find({'_id': 112})))
+        # pprint(list(user.find({'_id': 112})))
+        pprint(list(activity.find({'user_id': 112})))
+
 
         pprint(list(activity.aggregate([
             {'$match': {
@@ -78,7 +81,7 @@ class Queries:
 
         ])))
 
-    def query_11(self,user):
+    def query_11(self, user, activity):
         """
         Find all users who have registered transportation_mode and their most used transportation_mode.
         """
@@ -86,9 +89,23 @@ class Queries:
         # pprint(list(user.find()))
         # pprint(list(user.find({'_id': 10})))
 
-        pprint(list(user.aggregate([
-            {'$match': {'has_labels': {'$exists': "True"}}}
-        ])))
+        user_ids = (user.aggregate([
+            {'$match': {'has_labels': {'$exists': "true", "$ne": False}}},
+            {'$sort': {'_id': 1}},
+            {'$project': {'_id': 1,}}
+        ]))
+        print(user_ids)
+        for val in user_ids:
+            user_id = val['_id']
+            print(user_id)
+            pprint(list(activity.aggregate([
+                {'$match': {'transportation_mode': {'$ne': None, '$exists': 'true'}}},
+                {'$group': {'_id': '$transportation_mode', "Total activities": {'$count': {}}}},
+                {'$sort': {'Total activities': -1}},
+                {'$limit': 1}
+            ])))
+
+
 
 def main():
     program = None
@@ -101,9 +118,9 @@ def main():
         # print("Query 3: ")
         # program.query_3(user)
         # print("Query 5: ")
-        program.query_5(activity)
+        # program.query_5(activity)
         # program.query_7(user, activity)
-        # program.query_11(user)
+        program.query_11(user, activity)
 
 
 
