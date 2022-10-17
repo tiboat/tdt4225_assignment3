@@ -118,11 +118,6 @@ class Setup:
             # Add user with has_label and ids of its activities
             users.append({"_id": int(user), "has_labels": self.has_label(user), "activities": activities_user})
 
-        # Insert data in db
-        self.bulk_insert_data("User", users)
-        self.bulk_insert_data("Activity", activities)
-        self.bulk_insert_data("TrackPoint", trackpoints)
-
         print("Users:")
         print(f"length: {len(users)}")
         # print(f"example: {users[5]}")
@@ -134,6 +129,13 @@ class Setup:
         print("Trackpoint:")
         print(f"length: {len(trackpoints)}")
         # print(f"example: {trackpoints[5]}")
+
+        # Insert data in db
+        self.bulk_insert_data("User", users)
+        self.bulk_insert_data("Activity", activities)
+        self.bulk_insert_data("TrackPoint", trackpoints)
+
+
 
     def bulk_insert_data(self, collection_name, data):
         """
@@ -157,7 +159,7 @@ class Setup:
 
     def get_transportation_mode(self, start_date_time, end_date_time, user):
         """
-        Returns the transportation mode of the activity from user with start start_date_time and end end_date_time.
+        Returns the transportation mode of the activity from user with start start_date_time and end_date_time.
 
         Args:
             start_date_time: start date time of the activity
@@ -192,8 +194,8 @@ class Setup:
         labels_user = pd.read_csv(label_file_path, names=["start_date_time", "end_date_time", "transportation_mode"],
                                   sep="\t", header=None, skiprows=1)
         for _, row in labels_user.iterrows():
-            row["start_date_time"] = row["start_date_time"].replace("/", "-")
-            row["end_date_time"] = row["end_date_time"].replace("/", "-")
+            row["start_date_time"] = str_to_datetime(row["start_date_time"].replace("/", "-"))
+            row["end_date_time"] = str_to_datetime(row["end_date_time"].replace("/", "-"))
 
         self.labels[user] = labels_user
 
