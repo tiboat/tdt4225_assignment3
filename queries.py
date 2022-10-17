@@ -52,58 +52,69 @@ class Queries:
         # pprint(list(activity.distinct('transportation_mode')))
         # print(list(activity.find({'user_id' : 10})))
         pprint(list(activity.aggregate([
-            {"$match": {"transportation_mode": {"$ne": None, "$exists": "true"}}},
-            {"$group": {"_id": "$transportation_mode", "Total activities": {"$count": {}}}}
+            {'$match': {'transportation_mode': {'$ne': None}}},
+            {'$group': {'_id': '$transportation_mode', 'Total activities': {'$count': {}}}},
+            {'$sort': {'Total activities': -1}}
         ])))
 
-    def query_7(self, user, activity):
+    def query_7(self, user, activity, trackpoint):
         """
         Find the total distance (in km) walked in 2008, by user with id=112.
         """
-        # pprint(list(user.find({'_id': 112})))
-        pprint(list(activity.find({'user_id': 112})))
 
-
-        pprint(list(activity.aggregate([
+        activity_ids_and_trackpoints = (list(activity.aggregate([
             {'$match': {
                 'transportation_mode': 'walk',
-                'user_id': '112',
-                'start_date_time': {'$gte': datetime(2008, 1, 1)},
-                'end_date_time': {'$lt': datetime(2009, 1, 1)}
+                'user_id': 112}},
+            {'$project': {
+                'trackpoints': 1
             }}
-
-
-            , {
-            '$project': {
-                '_id': 1,
-            }
-            }
-
         ])))
+
+
+        previous_lat_lon = None
+        distance = 0
+        for elem in activity_ids_and_trackpoints:
+            trackpoint_list = elem['trackpoints']
+            for trackpoint_id in trackpoint_list:
+                lat_lon = (list(trackpoint.find({'_id': trackpoint_id},
+                                                {'lat': 1,
+                                                 'lon': 1})))[0]
+                current_lat_lon = (lat_lon['lat'],lat_lon['lon'])
+                if previous_lat_lon is None:
+                    previous_lat_lon = current_lat_lon
+                distance += haversine(current_lat_lon,previous_lat_lon, unit="km")
+                previous_lat_lon = current_lat_lon
+            previous_lat_lon = None
+        print(distance, 'km')
+
+
+
 
     def query_11(self, user, activity):
         """
         Find all users who have registered transportation_mode and their most used transportation_mode.
         """
 
-        # pprint(list(user.find()))
-        # pprint(list(user.find({'_id': 10})))
-
         user_ids = (user.aggregate([
             {'$match': {'has_labels': {'$exists': "true", "$ne": False}}},
             {'$sort': {'_id': 1}},
-            {'$project': {'_id': 1,}}
+            {'$project': {'_id': 1}}
         ]))
-        print(user_ids)
-        for val in user_ids:
-            user_id = val['_id']
-            print(user_id)
-            pprint(list(activity.aggregate([
-                {'$match': {'transportation_mode': {'$ne': None, '$exists': 'true'}}},
+        # print(user_ids)
+        for elem in user_ids:
+            user_id = elem['_id']
+            # print(user_id)
+            total_activities_and_favourite_transport = (list(activity.aggregate([
+                {'$match': {'transportation_mode': {'$ne': None, '$exists': 'true'}, 'user_id' : user_id}},
                 {'$group': {'_id': '$transportation_mode', "Total activities": {'$count': {}}}},
                 {'$sort': {'Total activities': -1}},
                 {'$limit': 1}
             ])))
+            if total_activities_and_favourite_transport != []:
+                favourite_transportation_mode = total_activities_and_favourite_transport[0]['_id']
+                print(user_id, favourite_transportation_mode)
+
 
 
 
@@ -113,13 +124,15 @@ def main():
     try:
         program = Queries()
         user, activity, trackpoint = program.get_user_activity_trackpoint()
-        # print("Query 1: ")
-        # program.query_1(user, activity, trackpoint)
-        # print("Query 3: ")
-        # program.query_3(user)
-        # print("Query 5: ")
-        # program.query_5(activity)
-        # program.query_7(user, activity)
+        print('Query 1: ')
+        program.query_1(user, activity, trackpoint)
+        print('Query 3: ')
+        program.query_3(user)
+        print('Query 5: ')
+        program.query_5(activity)
+        print("Query 7: ")
+        program.query_7(user, activity, trackpoint)
+        print('Query 11: ')
         program.query_11(user, activity)
 
 
