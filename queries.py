@@ -33,6 +33,15 @@ class Queries:
             {'$group': {'_id': "TrackPoint_id", 'NbOfTrackPoints': {'$count': {}}}}
         ])))
 
+    def query_2(self, user, activity):
+        """
+        Find the average number of activities per user.
+        """
+        NofActivities = activity.count_documents({})
+        NofUsers = user.count_documents({})
+        AvgActivitiesPerUser = NofActivities/NofUsers
+        print('Average number of activities per user:', AvgActivitiesPerUser)
+
     def query_3(self, user):
         """
         Find the top 20 users with the highest number of activities.
@@ -42,6 +51,16 @@ class Queries:
             {'$group': {'Total activities': {'$sum': 1}, '_id': '$_id'}},
             {'$sort': {'Total activities': -1}},
             {'$limit': 20}
+        ])))
+
+    def query_4(self, activity):
+        """
+        Find all users who have taken a taxi.
+        """
+        pprint(list(activity.aggregate([
+            {'$match': {'transportation_mode': 'taxi'}},
+            {'$group': {'_id': '$user_id'}},
+            {'$sort': {'_id':1}}
         ])))
 
     def query_5(self, activity):
@@ -55,6 +74,29 @@ class Queries:
             {'$match': {'transportation_mode': {'$ne': None}}},
             {'$group': {'_id': '$transportation_mode', 'Total activities': {'$count': {}}}},
             {'$sort': {'Total activities': -1}}
+        ])))
+
+    def query_6a(self, activity):
+        """
+        Find the year with the most activities.
+        """
+        pprint(list(activity.aggregate([
+            {'$project': {'year': {'$year' : '$start_date_time'}}},
+            {'$group': {'_id': '$year', 'NofActivities':{'$sum':1}}},
+            {'$sort':{'NofActivities':-1}},
+            {'$limit':1}
+        ])))
+
+    def query_6b(self, activity, trackpoint):
+        """
+        Is this also the year with most recorded hours?
+        """
+        pprint(list(activity.aggregate([
+            {"$addFields": {
+                "diff_hours": {"$divide": [{"$subtract": ["$end_date_time", "$start_date_time"]}, 3600000]}}},
+            {"$group": {"_id": {"$year": "$start_date_time"}, "recorded_hours": {"$sum": "$diff_hours"}}},
+            {"$sort": {"recorded_hours": -1}},
+            {"$limit": 1}
         ])))
 
     def query_7(self, user, activity, trackpoint):
@@ -88,10 +130,12 @@ class Queries:
             previous_lat_lon = None
         print(distance, 'km')
 
+    def query_8(self, trackpoint, activity):
+        """
+        Find the top 20 users who have gained the most altitude meters.
+        """
 
-
-
-    def query_11(self, user, activity):
+def query_11(self, user, activity):
         """
         Find all users who have registered transportation_mode and their most used transportation_mode.
         """
@@ -126,10 +170,18 @@ def main():
         user, activity, trackpoint = program.get_user_activity_trackpoint()
         print('Query 1: ')
         program.query_1(user, activity, trackpoint)
+        print('Query 2: ')
+        program.query_2(user, activity)
         print('Query 3: ')
         program.query_3(user)
+        print('Query 4: ')
+        program.query_4(activity)
         print('Query 5: ')
         program.query_5(activity)
+        print('Query 6a: ')
+        program.query_6a(activity)
+        print('Query 6b: ')
+        program.query_6b(activity, trackpoint)
         print("Query 7: ")
         program.query_7(user, activity, trackpoint)
         print('Query 11: ')
