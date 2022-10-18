@@ -135,29 +135,29 @@ class Queries:
         Find the top 20 users who have gained the most altitude meters.
         """
 
-def query_11(self, user, activity):
-        """
-        Find all users who have registered transportation_mode and their most used transportation_mode.
-        """
+    def query_11(self, user, activity):
+            """
+            Find all users who have registered transportation_mode and their most used transportation_mode.
+            """
 
-        user_ids = (user.aggregate([
-            {'$match': {'has_labels': {'$exists': "true", "$ne": False}}},
-            {'$sort': {'_id': 1}},
-            {'$project': {'_id': 1}}
-        ]))
-        # print(user_ids)
-        for elem in user_ids:
-            user_id = elem['_id']
-            # print(user_id)
-            total_activities_and_favourite_transport = (list(activity.aggregate([
-                {'$match': {'transportation_mode': {'$ne': None, '$exists': 'true'}, 'user_id' : user_id}},
-                {'$group': {'_id': '$transportation_mode', "Total activities": {'$count': {}}}},
-                {'$sort': {'Total activities': -1}},
-                {'$limit': 1}
-            ])))
-            if total_activities_and_favourite_transport != []:
-                favourite_transportation_mode = total_activities_and_favourite_transport[0]['_id']
-                print(user_id, favourite_transportation_mode)
+            user_ids = (user.aggregate([
+                {'$match': {'has_labels': {'$exists': "true", "$ne": False}}},
+                {'$sort': {'_id': 1}},
+                {'$project': {'_id': 1}}
+            ]))
+            # print(user_ids)
+            for elem in user_ids:
+                user_id = elem['_id']
+                # print(user_id)
+                total_activities_and_favourite_transport = (list(activity.aggregate([
+                    {'$match': {'transportation_mode': {'$ne': None, '$exists': 'true'}, 'user_id' : user_id}},
+                    {'$group': {'_id': '$transportation_mode', "Total activities": {'$count': {}}}},
+                    {'$sort': {'Total activities': -1}},
+                    {'$limit': 1}
+                ])))
+                if total_activities_and_favourite_transport != []:
+                    favourite_transportation_mode = total_activities_and_favourite_transport[0]['_id']
+                    print(user_id, favourite_transportation_mode)
 
 
 
@@ -168,22 +168,22 @@ def main():
     try:
         program = Queries()
         user, activity, trackpoint = program.get_user_activity_trackpoint()
-        print('Query 1: ')
-        program.query_1(user, activity, trackpoint)
-        print('Query 2: ')
-        program.query_2(user, activity)
-        print('Query 3: ')
-        program.query_3(user)
-        print('Query 4: ')
-        program.query_4(activity)
-        print('Query 5: ')
-        program.query_5(activity)
-        print('Query 6a: ')
-        program.query_6a(activity)
-        print('Query 6b: ')
-        program.query_6b(activity, trackpoint)
-        print("Query 7: ")
-        program.query_7(user, activity, trackpoint)
+        # print('Query 1: ')
+        # program.query_1(user, activity, trackpoint)
+        # print('Query 2: ')
+        # program.query_2(user, activity)
+        # print('Query 3: ')
+        # program.query_3(user)
+        # print('Query 4: ')
+        # program.query_4(activity)
+        # print('Query 5: ')
+        # program.query_5(activity)
+        # print('Query 6a: ')
+        # program.query_6a(activity)
+        # print('Query 6b: ')
+        # program.query_6b(activity, trackpoint)
+        # print("Query 7: ")
+        # program.query_7(user, activity, trackpoint)
         print('Query 11: ')
         program.query_11(user, activity)
 
