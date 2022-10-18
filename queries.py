@@ -135,6 +135,17 @@ class Queries:
         Find the top 20 users who have gained the most altitude meters.
         """
 
+    def query_10(self, trackpoint, activity):
+        """
+        Find the users who have tracked an activity in the Forbidden City of Beijing.
+        """
+        forbidden_city_activities=list(trackpoint.find({
+            'lat': {'$gt': 39.9160, '$lt': 39.9169},
+            'lon': {'$gt': 116.3970 , '$lt': 116.3979}
+        }, {'activity_id': 1}).distinct('activity_id'))
+
+        pprint(list(activity.find({'_id': {'$in': forbidden_city_activities}},{'user_id': 1}).distinct('user_id')))
+
     def query_11(self, user, activity):
             """
             Find all users who have registered transportation_mode and their most used transportation_mode.
@@ -184,6 +195,8 @@ def main():
         # program.query_6b(activity, trackpoint)
         # print("Query 7: ")
         # program.query_7(user, activity, trackpoint)
+        print('Query 10: ')
+        program.query_10(trackpoint, activity)
         print('Query 11: ')
         program.query_11(user, activity)
 
