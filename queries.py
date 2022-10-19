@@ -1,10 +1,5 @@
-from datetime import datetime, time
 from pprint import pprint
-
-import pandas as pd
-
 from DbConnector import DbConnector
-from tabulate import tabulate
 from haversine import haversine
 
 
@@ -135,6 +130,55 @@ class Queries:
         Find the top 20 users who have gained the most altitude meters.
         """
 
+    def query_9(self, trackpoint):
+        """
+        Find all users who have invalid activities, and the number of invalid activities per user.
+        """
+        # Based on: https://github.com/simenojensen/TDT4225_Assignment_3/blob/main/strava/queries.py
+
+        query = list(trackpoint.aggregate([
+            # Make a window in which each trackpoint gets combined with the next trackpoint (based on id)
+            # if they belong to the same activity
+            {"$setWindowFields": {
+                "partitionBy": "$activity_id",
+                "sortBy": {"_id": 1}, # trackpoint id
+                "output": {
+                    "next_date_time": {
+                        "$shift": {"output": "$date_time", "by": 1}
+                    }
+                },
+            }},
+            # Project to new collection with the time difference between the trackpoint's datetime and
+            # the next trackpoint's datetime
+            {"$project": {
+                "_id": 1,
+                "activity_id": 1,
+                "time_diff": {"$dateDiff":
+                    {
+                        "startDate": "$date_time",
+                        "endDate": "$next_date_time",
+                        "unit": "minute"
+                    }
+                }
+            }},
+            # WHERE clause: select only trackpoints which have a time difference >= 5 minutes
+            {"$match": {"time_diff": {"$gte": 5}}},
+            # Only keep the distinct activity ids which have consecutive trackpoints with a time difference >= 5 mins
+            # so these activities are invalid
+            {"$group": {"_id": "$activity_id"}},
+            # Join with Activity collection
+            {"$lookup": {
+                "from": "Activity",
+                "localField": "_id",
+                "foreignField": "_id",
+                "as": "InvalidActivity",
+            }},
+            # Count amount of invalid activities per user
+            {"$sortByCount": "$InvalidActivity.user_id"}
+        ]))
+
+        pprint(query)
+
     def query_10(self, trackpoint, activity):
         """
         Find the users who have tracked an activity in the Forbidden City of Beijing.
@@ -195,6 +239,9 @@ def main():
         # program.query_6b(activity, trackpoint)
         # print("Query 7: ")
         # program.query_7(user, activity, trackpoint)
+
+        # print("Query 9: ")
+        # program.query_9(trackpoint)
         print('Query 10: ')
         program.query_10(trackpoint, activity)
         print('Query 11: ')
