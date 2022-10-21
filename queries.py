@@ -1,7 +1,7 @@
 from pprint import pprint
 from DbConnector import DbConnector
 from haversine import haversine
-
+import numpy as np
 
 class Queries:
     def __init__(self):
@@ -88,8 +88,8 @@ class Queries:
         """
         pprint(list(activity.aggregate([
             {"$addFields": {
-                "diff_hours": {"$divide": [{"$subtract": ["$end_date_time", "$start_date_time"]}, 3600000]}}},
-            {"$group": {"_id": {"$year": "$start_date_time"}, "recorded_hours": {"$sum": "$diff_hours"}}},
+                "delta_hours": {"$divide": [{"$subtract": ["$end_date_time", "$start_date_time"]}, 3600000]}}},
+            {"$group": {"_id": {"$year": "$start_date_time"}, "recorded_hours": {"$sum": "$delta_hours"}}},
             {"$sort": {"recorded_hours": -1}},
             {"$limit": 1}
         ])))
@@ -125,10 +125,61 @@ class Queries:
             previous_lat_lon = None
         print(distance, 'km')
 
-    def query_8(self, trackpoint, activity):
+    def query_8(self, user, activity, trackpoint):
         """
         Find the top 20 users who have gained the most altitude meters.
         """
+        pprint(list(trackpoint.aggregate([
+            {
+                "$setWindowFields": {
+                    "partitionBy": "$activity_id",
+                    "sortBy": {"_id": 1},
+                    "output": {
+                        "shiftAltitude": {
+                            "$shift": {"output": "$altitude", "by": 1, "default": np.nan}
+                        }
+                    },
+                }
+            },
+            {
+                "$project": {
+                    "_id": 1,
+                    "activity_id": 1,
+                    "altitude": 1,
+                    "shiftAltitude": 1,
+                    "altitudeDiff": {"$subtract": ["$shiftAltitude", "$altitude"]},
+                }
+            },
+            {"$match": {"altitudeDiff": {"$gt": 0}}},
+            {
+                "$group": {
+                    "_id": "$activity_id",
+                    "activityAltitudeGained": {"$sum": "$altitudeDiff"},
+                }
+            },
+            {
+                "$lookup": {
+                    "from": "user",
+                    "localField": "_id",
+                    "foreignField": "activity_id",
+                    "as": "user",
+                }
+            },
+            {
+                "$group": {
+                    "_id": "$user._id",
+                    "altitudeGained": {"$sum": "$activityAltitudeGained"},
+                }
+            },
+            {"$sort": {"altitudeGained": -1}},
+            {  # convert to feet
+                "$project": {
+                    "_id": "$_id",
+                    "altitudeGained": {"$multiply": ["$altitudeGained", 0.3048]},
+                }
+            },
+            {"$limit": 20},
+        ])))
 
     def query_9(self, trackpoint):
         """
@@ -183,12 +234,12 @@ class Queries:
         """
         Find the users who have tracked an activity in the Forbidden City of Beijing.
         """
-        forbidden_city_activities=list(trackpoint.find({
+        fc_activities=list(trackpoint.find({
             'lat': {'$gt': 39.9160, '$lt': 39.9169},
             'lon': {'$gt': 116.3970 , '$lt': 116.3979}
         }, {'activity_id': 1}).distinct('activity_id'))
 
-        pprint(list(activity.find({'_id': {'$in': forbidden_city_activities}},{'user_id': 1}).distinct('user_id')))
+        pprint(list(activity.find({'_id': {'$in': fc_activities}},{'user_id': 1}).distinct('user_id')))
 
     def query_11(self, user, activity):
             """
@@ -225,27 +276,28 @@ def main():
         user, activity, trackpoint = program.get_user_activity_trackpoint()
         # print('Query 1: ')
         # program.query_1(user, activity, trackpoint)
-        # print('Query 2: ')
-        # program.query_2(user, activity)
+        #print('Query 2: ')
+        #program.query_2(user, activity)
         # print('Query 3: ')
         # program.query_3(user)
-        # print('Query 4: ')
-        # program.query_4(activity)
+        #print('Query 4: ')
+        #program.query_4(activity)
         # print('Query 5: ')
         # program.query_5(activity)
-        # print('Query 6a: ')
-        # program.query_6a(activity)
-        # print('Query 6b: ')
-        # program.query_6b(activity, trackpoint)
+        #print('Query 6a: ')
+        #program.query_6a(activity)
+        #print('Query 6b: ')
+        #program.query_6b(activity, trackpoint)
         # print("Query 7: ")
         # program.query_7(user, activity, trackpoint)
-
+        print('Query 8: ')
+        program.query_8(user, activity, trackpoint)
         # print("Query 9: ")
         # program.query_9(trackpoint)
-        print('Query 10: ')
-        program.query_10(trackpoint, activity)
-        print('Query 11: ')
-        program.query_11(user, activity)
+        #print('Query 10: ')
+        #program.query_10(trackpoint, activity)
+        #print('Query 11: ')
+        #program.query_11(user, activity)
 
 
 
