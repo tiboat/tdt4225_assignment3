@@ -3,12 +3,6 @@ import os
 import pandas as pd
 from datetime import datetime
 
-# TODO:
-# Is amount of activities different than previous dataset?
-# Comment the drop collection code when submitting
-# Complete documentation
-# Write about part 1 in the report
-
 
 def read_labeled_users():
     """
@@ -23,16 +17,18 @@ def read_labeled_users():
         lines = label_file.readlines()
         return [line.rstrip() for line in lines]
 
-def str_to_datetime(str):
+
+def str_to_datetime(string):
     """
     Transforms a string of format %Y-%m-%d %H:%M:%S (e.g. 2022-02-23 18:51:49) to a datetime object
 
     Args:
-        str: string to convert ot datetime object
+        string: string to convert ot datetime object
 
     Returns: datetime object representation of str
     """
-    return datetime.strptime(str, "%Y-%m-%d %H:%M:%S")
+    return datetime.strptime(string, "%Y-%m-%d %H:%M:%S")
+
 
 def get_start_and_end_time(trackpoints):
     """
@@ -94,7 +90,7 @@ class Setup:
                 if nr_of_trackpoints <= 2500:
                     #  -- Append trackpoint data --
                     # Add _id and activity id to dataframe
-                    trackpoint_activity_ids = list(range(trackpoint_id, trackpoint_id+nr_of_trackpoints))
+                    trackpoint_activity_ids = list(range(trackpoint_id, trackpoint_id + nr_of_trackpoints))
                     trackpoints_activity['_id'] = trackpoint_activity_ids
                     trackpoints_activity['activity_id'] = activity_id
                     # Convert dataframe to list
@@ -108,9 +104,10 @@ class Setup:
                     start_date_time, end_date_time = get_start_and_end_time(trackpoints_activity)
                     transportation_mode = self.get_transportation_mode(start_date_time, end_date_time, user)
                     # Add activity to the list (with reference to user and trackpoint ids list)
-                    activities.append({"_id": activity_id, "user_id": int(user), "transportation_mode": transportation_mode,
-                                       "start_date_time": start_date_time, "end_date_time": end_date_time,
-                                       "trackpoints": trackpoint_activity_ids})
+                    activities.append(
+                        {"_id": activity_id, "user_id": int(user), "transportation_mode": transportation_mode,
+                         "start_date_time": start_date_time, "end_date_time": end_date_time,
+                         "trackpoints": trackpoint_activity_ids})
 
                     activities_user.append(activity_id)
                     activity_id += 1
@@ -118,31 +115,12 @@ class Setup:
             # Add user with has_label and ids of its activities
             users.append({"_id": int(user), "has_labels": self.has_label(user), "activities": activities_user})
 
-        print("Users:")
-        print(f"length: {len(users)}")
-        # print(f"example: {users[5]}")
-
-        print("Activity:")
-        print(f"length: {len(activities)}")
-        # print(f"example: {activities[5]}")
-
-        print("Trackpoint:")
-        print(f"length: {len(trackpoints)}")
-        # print(f"example: {trackpoints[5]}")
-
         # Insert data in db
         self.bulk_insert_data("User", users)
         self.bulk_insert_data("Activity", activities)
         self.bulk_insert_data("TrackPoint", trackpoints)
 
-
-
     def bulk_insert_data(self, collection_name, data):
-        """
-
-        Args:
-            data:
-        """
         print(f"Inserting data in {collection_name} ...")
         self.db[collection_name].insert_many(data)
 
@@ -207,9 +185,9 @@ def main():
         program = Setup()
 
         # Drop previous collections
-        program.db.drop_collection("TrackPoint")
-        program.db.drop_collection("Activity")
-        program.db.drop_collection("User")
+        # program.db.drop_collection("TrackPoint")
+        # program.db.drop_collection("Activity")
+        # program.db.drop_collection("User")
 
         # 2. Create and define the collections User, Activity and TrackPoint
         program.create_collections()
