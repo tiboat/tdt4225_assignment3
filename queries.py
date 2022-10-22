@@ -1,7 +1,7 @@
 from pprint import pprint
 from DbConnector import DbConnector
 from haversine import haversine
-import numpy as np
+import pandas as pd
 
 class Queries:
     def __init__(self):
@@ -129,57 +129,48 @@ class Queries:
         """
         Find the top 20 users who have gained the most altitude meters.
         """
-        pprint(list(trackpoint.aggregate([
-            {
-                "$setWindowFields": {
-                    "partitionBy": "$activity_id",
-                    "sortBy": {"_id": 1},
-                    "output": {
-                        "shiftAltitude": {
-                            "$shift": {"output": "$altitude", "by": 1, "default": np.nan}
+        feet_to_meter = 0.3048
+        # Fetching users first, since it is faster to query a subset of the activities.
+        res = []
+        for j, users in enumerate(range(182)):
+            user_tracks = list(user.aggregate(
+                [{
+                    '$match': {
+                        '_id': users
+                    }
+                }, {
+                    '$lookup': {
+                        'from': 'Activity',
+                        'localField': 'activities',
+                        'foreignField': '_id',
+                        'as': 'activities'
+                    }
+                }, {
+                    '$unwind': '$activities'
+                }, {
+                    '$unwind': '$activities.trackpoint'
+                }, {
+                    '$match': {
+                        'activities.trackpoint.altitude': {
+                            '$ne': -777
                         }
-                    },
-                }
-            },
-            {
-                "$project": {
-                    "_id": 1,
-                    "activity_id": 1,
-                    "altitude": 1,
-                    "shiftAltitude": 1,
-                    "altitudeDiff": {"$subtract": ["$shiftAltitude", "$altitude"]},
-                }
-            },
-            {"$match": {"altitudeDiff": {"$gt": 0}}},
-            {
-                "$group": {
-                    "_id": "$activity_id",
-                    "activityAltitudeGained": {"$sum": "$altitudeDiff"},
-                }
-            },
-            {
-                "$lookup": {
-                    "from": "user",
-                    "localField": "_id",
-                    "foreignField": "activity_id",
-                    "as": "user",
-                }
-            },
-            {
-                "$group": {
-                    "_id": "$user._id",
-                    "altitudeGained": {"$sum": "$activityAltitudeGained"},
-                }
-            },
-            {"$sort": {"altitudeGained": -1}},
-            {  # convert to feet
-                "$project": {
-                    "_id": "$_id",
-                    "altitudeGained": {"$multiply": ["$altitudeGained", 0.3048]},
-                }
-            },
-            {"$limit": 20},
-        ])))
+                    }
+                }, {
+                    '$project': {
+                        '_id': 0,
+                        'activity_id': '$activities._id',
+                        'altitude': '$activities.trackpoint.altitude',
+                        'date_time': '$activities.trackpoint.date_time'
+                    }
+                }]))
+            altitude_gained = 0
+            for i in range(len(user_tracks) - 1):
+                altitude_gained += max(user_tracks[i + 1]["altitude"] - user_tracks[i]["altitude"], 0)
+            res.append(pd.Series([user, altitude_gained], index=["user_id", "altitude_gained"]))
+        res = pd.DataFrame(res).sort_values(by=["altitude_gained"], ascending=False)
+        res["altitude_gained"] = res['altitude_gained'] * feet_to_meter
+        print()
+        print(res[:20])
 
     def query_9(self, trackpoint):
         """
